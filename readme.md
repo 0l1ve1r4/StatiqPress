@@ -10,3 +10,5 @@ Primarily aimed at **tool development**, `raygui` has been successfully employed
 
 <br>
 
+- sudo apt-get install libcurl4-openssl-dev
+

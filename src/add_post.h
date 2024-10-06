@@ -15,21 +15,10 @@
     #include "raygui.h"
 #endif
 
-#define MAX_TEXT_SIZE 2048
+#define MAX_TEXT_SIZE 4096
 #define MAX_INPUT_CHARS 64
 
-/*
-+++
-title = "Introdução às Redes Neurais Artificiais"
-date = "2024-10-03T10:00:00+02:00"
-tags = ["inteligência artificial", "aprendizado de máquina", "redes neurais"]
-categories = ["inteligência artificial"]
-description = "Um guia introdutório sobre redes neurais artificiais, cobrindo conceitos como neurônios, camadas, e o processo de aprendizado."
-banner = "img/banners/ann-banner.png"
-authors = ["Guilherme Oliveira"]
-+++
-
-*/
+char* getMarkdownMainContent(void);
 
 typedef struct {
     char variable_type[__UINT8_MAX__];
@@ -46,12 +35,17 @@ static MarkdownVariable_t markdownVariables[] = {
     {"tags", "Tags *", "aprendizado de máquina, redes neurais", false, false},
     {"categories", "Categories *", "inteligência artificial", false, false},
     {"description", "Description *", "", false, false},
-    {"banner", "Banner", "/desktop/banner.png", false, false},
-    {"authors", "Authors *", "", false, false}
+    {"banner", "Banner", "", false, false},
+    {"authors", "Authors *", "", false, false},
+
 };
 
+#define BANNER_IINDEX 5
 #define NUM_MARKDOWN_VARIABLES 7
 #define POSTS_SAVE_FOLDER "posts/"
+
+int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[], 
+                char fileDescription[]);
 
 int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingText) {
     int labelWidth = 200;
@@ -64,16 +58,11 @@ int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingT
     int yStep = 60;      // Increase the step for more vertical space between elements
     int xTextAdjust = 400;  // Adjust text x position to align with text boxes
 
-    // Labels
-    
-    int result = WINDOW_BAR("Add New Post", "", "Add");
-
+    int result = WINDOW_BAR("Add New Post", "", "Deploy to your Gitub Repository");
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
-        // Display the label
         GuiLabel((Rectangle){ xLabel - xTextAdjust, initialY + i * yStep, labelWidth, labelHeight }, 
             markdownVariables[i].label_name);
-
-        // Handle the textbox for editing
+        
         if (markdownVariables[i].editMode) {
             // Allow editing when editMode is true
             if (GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, MAX_INPUT_CHARS, true)) {
@@ -97,19 +86,96 @@ int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingT
         }
     }
 
-    if (GuiButton((Rectangle){ xLabel - xTextAdjust, initialY + ((NUM_LABELS+1) * yStep), 
+    if (GuiButton((Rectangle){ xLabel - xTextAdjust, initialY + ((NUM_MARKDOWN_VARIABLES+1) * yStep), 
         labelWidth, labelHeight }, "Erase")) {
+            getMarkdownMainContent(); // Test only
             erase();
         }
+
+    // Button to get image path using file dialog
+    if (GuiButton((Rectangle){ xLabel, initialY + ((NUM_MARKDOWN_VARIABLES+1) * yStep), 
+        labelWidth, labelHeight }, "Get Banner")) {
+            getFilePath(markdownVariables[5].default_value, false, "*.png", "PNG Files (*.png)");
+
+        }
+
+    if (GuiButton((Rectangle){ xLabel + xTextAdjust, initialY + ((NUM_MARKDOWN_VARIABLES+1) * yStep), 
+        labelWidth, labelHeight }, "Get Post Content")) {
+            getMarkdownMainContent();
+        }
+
 
     if (result == 0) return -1;
     if (result == 1) {
         return -1;
     }
 
+
+
+
     return 0;
 
 }
+/* Returns 1 if file was selected, 0 if dialog was canceled, -1 if an error occurred */
+int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[], 
+                char fileDescription[]) {
+    int result;
+    if (isCustomModelDialog) {
+        result = GuiFileDialog(DIALOG_MESSAGE, "Load file ...",  inFilePath, "Ok", 
+                                fileDescription);
+    } else {
+        result = GuiFileDialog(DIALOG_OPEN_FILE,  "Load file", inFilePath, fileExtension, 
+                                fileDescription);
+    }
+
+    return result;
+}
+
+
+char* getMarkdownMainContent(void) {
+    static char inFilePath[512] = { 0 };
+
+    if (getFilePath(inFilePath, false, "*.md", "Markdown Files (*.md)") == 1) {
+        FILE *file = fopen(inFilePath, "r");
+        if (file == NULL) {
+            printf("Error opening file!\n");
+            exit(1);
+        }
+
+        char *content = (char *)malloc(MAX_TEXT_SIZE);
+        if (content == NULL) {
+            printf("Error allocating memory!\n");
+            exit(1);  
+        }
+
+        // Initialize content to avoid undefined behavior with strcat
+        content[0] = '\0'; 
+
+        char line[MAX_TEXT_SIZE];
+        while (fgets(line, sizeof(line), file)) {
+            if (strlen(content) + strlen(line) >= MAX_TEXT_SIZE) {
+                printf("File content too large!\n");
+                free(content);
+                fclose(file);
+
+                // Returns only the content read so far
+                return content;
+            }
+            strcat(content, line);
+            
+            printf("%s", line);
+
+            #if defined(_DEBUG)
+                printf("%s", line);
+            #endif  
+        }
+
+        fclose(file);
+        return content;
+    }
+    return NULL; // If file was not selected or dialog canceled
+}
+
 
 #endif
 #endif

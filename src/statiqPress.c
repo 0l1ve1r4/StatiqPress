@@ -635,8 +635,7 @@ int main(int argc, char *argv[])
     // Main game loop
     while (!closeWindow)    // Detect window close button
     {
-
-        GuiSetFont(LoadFontEx("resources/fonts/Roboto-Regular.ttf", 20, 0, 0));
+        loadBluishFont();
         GuiSetStyle(TEXTBOX, TEXT_PADDING, 20); // Set padding to 0 for the textbox    
         GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
         // Change Font
