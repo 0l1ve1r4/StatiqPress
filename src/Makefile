@@ -29,11 +29,11 @@
 PLATFORM              ?= PLATFORM_DESKTOP
 
 # Define project variables
-PROJECT_NAME          ?= ddl-cms
+PROJECT_NAME          ?= SP
 PROJECT_VERSION       ?= 1.0
 PROJECT_BUILD_PATH    ?= .
 PROJECT_SOURCE_FILES  ?= \
-    rguiicons.c \
+    statiqPress.c \
     external/tinyfiledialogs.c
 
 RAYLIB_PATH           ?= C:/GitHub/raylib

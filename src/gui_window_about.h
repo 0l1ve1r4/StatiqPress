@@ -116,7 +116,7 @@ void GuiWindowAbout(GuiWindowAboutState *state);
     #define TOOL_VERSION        "1.0"
 #endif
 #if !defined(TOOL_DESCRIPTION)
-    #define TOOL_DESCRIPTION    "A simple and easy-to-use tool to do something"
+    #define TOOL_DESCRIPTION    "A simple and easy-to use tool to do something"
 #endif
 #if !defined(TOOL_RELEASE_DATE)
     #define TOOL_RELEASE_DATE   "Dec.2021"
@@ -238,6 +238,10 @@ void GuiWindowAbout(GuiWindowAboutState *state)
 
         // Draw window and controls
         //----------------------------------------------------------------------------------------
+        state->windowBounds.width = GetScreenWidth()/3;
+
+
+
         state->windowActive = !GuiWindowBox(state->windowBounds, TextFormat("#191#About %s", TOOL_NAME));
 
         int labelTextAlign = GuiGetStyle(LABEL, TEXT_ALIGNMENT);
@@ -263,7 +267,7 @@ void GuiWindowAbout(GuiWindowAboutState *state)
 
         GuiLine((Rectangle){ state->windowBounds.x, state->windowBounds.y + 200, (float)state->windowBounds.width, 20 }, NULL);
 
-        GuiLabel((Rectangle){ state->windowBounds.x + 10, state->windowBounds.y + 220, 289, 20 }, lblCopyrightText);
+        GuiLabel((Rectangle){ state->windowBounds.x + 10, state->windowBounds.y + 220, 500, 20 }, lblCopyrightText);
         GuiLabel((Rectangle){ state->windowBounds.x + 10, state->windowBounds.y + 250, 65, 16 }, lblMoreInfoText);
 
         float linkMailTextWidth = MeasureTextEx(GuiGetFont(), linkMailText, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING)).x;
@@ -279,8 +283,8 @@ void GuiWindowAbout(GuiWindowAboutState *state)
         int buttonTextAlign = GuiGetStyle(BUTTON, TEXT_ALIGNMENT);
         GuiSetStyle(BUTTON, TEXT_ALIGNMENT, TEXT_ALIGN_CENTER);
 
-        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 80 - 90, state->windowBounds.y + 305, 80, 24 }, btnSponsorText)) { OpenURL("https://github.com/sponsors/raysan5"); }
-        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 80, state->windowBounds.y + 305, 70, 24 }, btnCloseText)) state->windowActive = false;
+        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 150 - 150, state->windowBounds.y + 305, 140, 24 }, btnSponsorText)) { OpenURL("https://github.com/sponsors/raysan5"); }
+        if (GuiButton((Rectangle){ state->windowBounds.x + state->windowBounds.width - 150, state->windowBounds.y + 305, 140, 24 }, btnCloseText)) state->windowActive = false;
         GuiSetStyle(BUTTON, TEXT_ALIGNMENT, buttonTextAlign);
         //----------------------------------------------------------------------------------------
     }

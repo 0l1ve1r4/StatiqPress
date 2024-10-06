@@ -3,10 +3,10 @@
 
 #include "raygui.h"
 
-#define WINDOW_BAR_X 0  // Padding of the window bar
+#define WINDOW_BAR_X 10  // Padding of the window bar
 #define WINDOW_BAR_Y 60 // Padding of the window bar
-#define WINDOW_BAR_WIDTH GetScreenWidth()
-#define WINDOW_BAR_HEIGHT GetScreenHeight() - WINDOW_BAR_Y
+#define WINDOW_BAR_WIDTH (GetScreenWidth() - WINDOW_BAR_X * 2)
+#define WINDOW_BAR_HEIGHT (GetScreenHeight() - WINDOW_BAR_Y * 1.5)
 
 #define WINDOW_BAR_BOX (Rectangle) { WINDOW_BAR_X , WINDOW_BAR_Y, WINDOW_BAR_WIDTH, WINDOW_BAR_HEIGHT }
 

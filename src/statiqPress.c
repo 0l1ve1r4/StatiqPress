@@ -104,11 +104,11 @@
 *
 **********************************************************************************************/
 
-#define TOOL_NAME               "Discovery Data Lab CMS"
-#define TOOL_SHORT_NAME         "DDL"
+#define TOOL_NAME               "StatiqPress"
+#define TOOL_SHORT_NAME         "SP"
 #define TOOL_VERSION            "1.0"
-#define TOOL_DESCRIPTION        "A simple and easy-to-upload Blogs"
-#define TOOL_DESCRIPTION_BREAK  "A simple and easy-to-upload\nBlogs to the Hugo Static Site"
+#define TOOL_DESCRIPTION        "A simple and easy-to upload Blogs"
+#define TOOL_DESCRIPTION_BREAK  "A simple and easy-to upload\n Blogs to the Github-based Static Sites"
 #define TOOL_RELEASE_DATE       "Oct.2024"
 #define TOOL_LOGO_COLOR         0x48c9c5ff
 
@@ -121,7 +121,6 @@
 
 // NOTE: Some raygui elements need to be defined before including raygui
 #define RAYGUI_TEXTSPLIT_MAX_ITEMS        256
-#define RAYGUI_TEXTSPLIT_MAX_TEXT_SIZE   4096
 #define RAYGUI_TOGGLEGROUP_MAX_ITEMS      256
 #define RAYGUI_GRID_ALPHA                 0.2f
 #define RAYGUI_IMPLEMENTATION
@@ -191,7 +190,6 @@ bool __stdcall FreeConsole(void);       // Close console from code (kernel32.lib
 #define RGI_BIT_CLEAR(a,b)  ((a) &= ~((1u)<<(b)))
 
 #define MAX_UNDO_LEVELS         10      // Undo levels supported for the ring buffer
-#define MAX_TEXT_SIZE 4096  // Maximum text size for the editor
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -471,7 +469,6 @@ static unsigned int currentIcons[RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS
 static char backupGuiIconsName[RAYGUI_ICON_MAX_ICONS][32] = { 0 };
 
 // Edit the main box:
-void UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingText);
 int getTextIndex(char text[]);
 
 //----------------------------------------------------------------------------------
@@ -631,15 +628,19 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
 
     // Starting at the eight theme/style
-    mainToolbarState.visualStyleActive = 8;
+    #define DEFAULT_STYLE 2
+    mainToolbarState.visualStyleActive = DEFAULT_STYLE - 1;
     mainToolbarState.btnAboutPressed = true; // show this when starting the program
 
     // Main game loop
     while (!closeWindow)    // Detect window close button
     {
 
+        GuiSetFont(LoadFontEx("resources/fonts/Roboto-Regular.ttf", 20, 0, 0));
         GuiSetStyle(TEXTBOX, TEXT_PADDING, 20); // Set padding to 0 for the textbox    
         GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
+        // Change Font
+
         // WARNING: ASINCIFY requires this line,
         // it contains the call to emscripten_sleep() for PLATFORM_WEB
         if (WindowShouldClose()) showExitWindow = true;
@@ -937,7 +938,7 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showExitWindow)
             {
-                int result = GuiMessageBox((Rectangle){ screenWidth/2 - 125, screenHeight/2 - 50, 250, 100 }, TextFormat("#159#Closing %s", toolName), "Do you really want to exit?", "Yes;No");
+                int result = GuiMessageBox((Rectangle){ screenWidth/2 - ((screenWidth/4)/2), screenHeight/2 - 50, screenWidth/4, 150 }, TextFormat("#159#Closing %s", toolName), "Do you really want to exit?", "Yes;No");
 
                 if ((result == 0) || (result == 2)) showExitWindow = false;
                 else if (result == 1) closeWindow = true;
@@ -1086,10 +1087,13 @@ int main(int argc, char *argv[])
             else DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, (Vector2){ 0, 0 }, WHITE);
 
             if (CurrentGuiMode == WRITING_MODE) {
-                UpdateTextbox(screenWidth, screenHeight, text, &editingText);
+                if(UpdateTextbox(screenWidth, screenHeight, text, &editingText) == -1) {
+                    CurrentGuiMode = NULL_MODE;
+                }
             } 
             else if (CurrentGuiMode == PREVIEW_MODE) {
-                DrawTextEx(GetFontDefault(), text, (Vector2){50, 100}, 20, 2, BLACK);  // Basic preview
+                int alignment = 0;
+                GuiDrawText(text, (Rectangle){ 0, 0, screenWidth, screenHeight }, alignment, WHITE);
             } 
             else if (CurrentGuiMode == NEW_MEMBER_MODE) {
                if(addNewMember() == -1) {
