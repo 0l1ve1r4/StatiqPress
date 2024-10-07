@@ -112,12 +112,11 @@
 #define TOOL_RELEASE_DATE       "Oct.2024"
 #define TOOL_LOGO_COLOR         0x48c9c5ff
 
-#include "raylib.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wempty-body"
 
-#if defined(PLATFORM_WEB)
-    #define CUSTOM_MODAL_DIALOGS            // Force custom modal dialogs usage
-    #include <emscripten/emscripten.h>      // Emscripten library - LLVM to JavaScript compiler
-#endif
+#include "raylib.h"
 
 // NOTE: Some raygui elements need to be defined before including raygui
 #define RAYGUI_TEXTSPLIT_MAX_ITEMS        256
@@ -140,8 +139,13 @@
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
 
+#define RPNG_IMPLEMENTATION
+#include "external/rpng.h"                  // PNG chunks management
+
+#pragma GCC diagnostic pop
+
 #define GUI_NEW_POST_IMPLEMENTATION
-#include "add_post.h"                     // GUI: Add Member Window
+#include "sqp_new_upload.h"                     // GUI: Add Member Window
 
 // raygui embedded styles
 // NOTE: Included in the same order as selector
@@ -157,9 +161,6 @@
 #include "styles/style_cherry.h"            // raygui style: cherry
 #include "styles/style_sunny.h"             // raygui style: sunny
 #include "styles/style_enefete.h"           // raygui style: enefete
-
-#define RPNG_IMPLEMENTATION
-#include "external/rpng.h"                  // PNG chunks management
 
 #include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                         // Required for: malloc(), free()
@@ -220,7 +221,6 @@ static const char *toolDescription = TOOL_DESCRIPTION;
 
 // NOTE: Max length depends on OS, in Windows MAX_PATH = 256
 static char inFileName[512] = { 0 };        // Input file name (required in case of drag & drop over executable)
-static char outFileName[512] = { 0 };       // Output file name (required for file save/export)
 
 static bool saveChangesRequired = false;    // Flag to notice save changes are required
 
@@ -461,9 +461,7 @@ typedef enum {
 
 
 // Keep a pointer to original gui iconset as backup
-static unsigned int *backupGuiIcons = guiIcons;
 static unsigned int currentIcons[RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS] = { 0 };
-static char backupGuiIconsName[RAYGUI_ICON_MAX_ICONS][32] = { 0 };
 
 // Edit the main box:
 int getTextIndex(char text[]);
@@ -471,52 +469,17 @@ int getTextIndex(char text[]);
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
-#if defined(PLATFORM_DESKTOP)
-// Command line functionality
-static void ShowCommandLineInfo(void);                      // Show command line usage info
-static void ProcessCommandLine(int argc, char *argv[]);     // Process command line input
-#endif
 
-// Load/Save/Export data functions
-static int SaveIcons(const char *fileName);                 // Save raygui icons file (.md)
-static void ExportIconsAsCode(const char *fileName);        // Export gui icons as code (.h)
 
-// Auxiliar functions
-static Image GenImageFromIconData(unsigned int *values, int iconCount, int iconsPerLine, int padding);  // Gen icons pack image from icon data array
-
-static unsigned int *GetIconData(unsigned int *iconset, int iconId);             // Get icon bit data
-static void SetIconPixel(unsigned int *iconset, int iconId, int x, int y);       // Set icon pixel value
-static void ClearIconPixel(unsigned int *iconset, int iconId, int x, int y);     // Clear icon pixel value
 
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(void)
 {
 #if !defined(_DEBUG)
     SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messsages
 #endif
-#if defined(PLATFORM_DESKTOP)
-    // Command-line usage mode
-    //--------------------------------------------------------------------------------------
-    if (argc > 1)
-    {
-        if ((argc == 2) &&
-            (strcmp(argv[1], "-h") != 0) &&
-            (strcmp(argv[1], "--help") != 0))       // One argument (file dropped over executable?)
-        {
-            if (IsFileExtension(argv[1], ".md"))
-            {
-                strcpy(inFileName, argv[1]);        // Read input filename to open with gui interface
-            }
-        }
-        else
-        {
-            ProcessCommandLine(argc, argv);
-            return 0;
-        }
-    }
-#endif  // PLATFORM_DESKTOP
 #if (!defined(_DEBUG) && (defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)))
     // WARNING (Windows): If program is compiled as Window application (instead of console),
     // no console is available to show output info... solution is compiling a console application
@@ -536,12 +499,8 @@ int main(int argc, char *argv[])
     RenderTexture2D target = LoadRenderTexture(screenWidth, screenHeight);
     SetTextureFilter(target.texture, TEXTURE_FILTER_POINT);
 
-    Vector2 cell = { -1, -1 };  // Grid cell mouse position
-    int iconEditScale = 16;     // Icon edit scale
-
     // GUI: Main layout
     //-----------------------------------------------------------------------------------
-    Vector2 anchor01 = { 0, 0 };
     int selectedIcon = 0;
 
     // ToggleGroup() text
@@ -556,7 +515,6 @@ int main(int argc, char *argv[])
 
     toggleIconsText[RAYGUI_ICON_MAX_ICONS*6 - 1] = '\0';
 
-    bool mouseHoverCells = false;
     bool screenSizeActive = false;
     //-----------------------------------------------------------------------------------
 
@@ -584,11 +542,7 @@ int main(int argc, char *argv[])
     //-----------------------------------------------------------------------------------
     bool showExportWindow = false;
 
-    int exportFormatActive = 0;             // ComboBox file type selection
-    char styleNameText[128] = "Unnamed";    // Style name text box
-    bool styleNameEditMode = false;         // Style name text box edit mode
 
-    bool nameIdsChunkChecked = true;        // Select to embed style as a PNG chunk (rGSf)
     //-----------------------------------------------------------------------------------
 
     // GUI: Exit Window
@@ -617,8 +571,6 @@ int main(int argc, char *argv[])
     }
 
     // Editor Variables
-    char text[MAX_TEXT_SIZE] = {0};  // Buffer for the text area
-    bool editingText = false;         // To control text editing
     GuiMode CurrentGuiMode = NULL_MODE;
 
     SetTargetFPS(60);       // Set our game to run at 60 frames-per-second
@@ -628,7 +580,7 @@ int main(int argc, char *argv[])
     #define DEFAULT_STYLE 2
     mainToolbarState.visualStyleActive = DEFAULT_STYLE - 1;
     mainToolbarState.btnAboutPressed = true; // show this when starting the program
-
+    
     // Main game loop
     while (!closeWindow)    // Detect window close button
     {
@@ -673,38 +625,23 @@ int main(int argc, char *argv[])
 
         // Keyboard shortcuts (+main toolbar related buttons)
         //------------------------------------------------------------------------------------
-        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_N)) || mainToolbarState.btnNewFilePressed)
-        {
-            // Restore original raygui iconset
-            memcpy(currentIcons, backupGuiIcons, RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS*sizeof(int));
-            for (int i = 0; i < RAYGUI_ICON_MAX_ICONS; i++) memcpy(guiIconsName[i], backupGuiIconsName[i], strlen(backupGuiIconsName[i]));
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_N)) || mainToolbarState.btnNewFilePressed) {
+            // TODO
         }
 
         // Show dialog: load icons data (.md)
-        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) || mainToolbarState.btnLoadFilePressed) showLoadFileDialog = true;
-
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_O)) || mainToolbarState.btnLoadFilePressed) {
+            // TODO
+        }
         // Show dialog: save icons data (.md)
-        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || mainToolbarState.btnSaveFilePressed)
-        {
-            if (inFileName[0] == '\0')
-            {
-                // Show dialog: save icons data (.md)
-                strcpy(outFileName, "iconset.md");
-                showSaveFileDialog = true;
-            }
-            else if (saveChangesRequired)
-            {
-                SaveIcons(inFileName);
-                SetWindowTitle(TextFormat("%s v%s | File: %s", toolName, toolVersion, GetFileName(inFileName)));
-                saveChangesRequired = false;
-            }
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S)) || mainToolbarState.btnSaveFilePressed) {
+            // TODO
         }
 
         // Show dialog: export icons data (.png, .h)
-        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) || mainToolbarState.btnExportFilePressed)
-        {
-            strcpy(outFileName, "iconset.md");
-            showExportWindow = true;
+        if ((IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_E)) || mainToolbarState.btnExportFilePressed) {
+            // TODO
+
         }
 
         // Toggle window: help
@@ -720,32 +657,17 @@ int main(int argc, char *argv[])
         if (IsKeyPressed(KEY_F5)) mainToolbarState.btnPreviewPressed = !mainToolbarState.btnPreviewPressed;
 
         // Show closing window on ESC
-        if (IsKeyPressed(KEY_ESCAPE))
-        {
+        if (IsKeyPressed(KEY_ESCAPE)) {
             if (windowHelpState.windowActive) windowHelpState.windowActive = false;
             else if (windowAboutState.windowActive) windowAboutState.windowActive = false;
             else if (showIssueReportWindow) showIssueReportWindow = false;
             else if (showExportWindow) showExportWindow = false;
-        #if defined(PLATFORM_DESKTOP)
             else showExitWindow = !showExitWindow;
-        #else
-            else if (showLoadFileDialog) showLoadFileDialog = false;
-            else if (showSaveFileDialog) showSaveFileDialog = false;
-            else if (showExportFileDialog) showExportFileDialog = false;
-        #endif
         }
 
         // Select visual style
         if (mainToolbarState.visualStyleActive < 0) mainToolbarState.visualStyleActive = MAX_GUI_STYLES_AVAILABLE - 1;
         else if (mainToolbarState.visualStyleActive > (MAX_GUI_STYLES_AVAILABLE - 1)) mainToolbarState.visualStyleActive = 0;
-
-#if !defined(PLATFORM_WEB)
-        // Toggle screen size (x2) mode
-        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_F)) screenSizeActive = !screenSizeActive;
-
-        // Toggle full screen mode
-        if (IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(KEY_ENTER)) ToggleFullscreen();
-#endif
 
         // Visual options logic
         if (mainToolbarState.visualStyleActive != mainToolbarState.prevVisualStyleActive)
@@ -795,29 +717,6 @@ int main(int argc, char *argv[])
 
         // Basic program flow logic
         //----------------------------------------------------------------------------------
-        if (!GuiIsLocked())
-        {
-            iconEditScale += GetMouseWheelMove();
-            if (iconEditScale < 2) iconEditScale = 2;
-            else if (iconEditScale > 16) iconEditScale = 16;
-
-            mouseHoverCells = CheckCollisionPointRec(GetMousePosition(), (Rectangle){ anchor01.x + 365 + 128 - RAYGUI_ICON_SIZE*iconEditScale/2, anchor01.y + 108 + 128 - RAYGUI_ICON_SIZE*iconEditScale/2, RAYGUI_ICON_SIZE*iconEditScale, RAYGUI_ICON_SIZE*iconEditScale });
-
-            if (mouseHoverCells)
-            {
-                // Security check to avoid cells out of limits
-                if (cell.x > (RAYGUI_ICON_SIZE - 1)) cell.x = RAYGUI_ICON_SIZE - 1;
-                if (cell.y > (RAYGUI_ICON_SIZE - 1)) cell.y = RAYGUI_ICON_SIZE - 1;
-
-                // Icon painting mouse logic
-                if ((cell.x >= 0) && (cell.y >= 0) && (cell.x < RAYGUI_ICON_SIZE) && (cell.y < RAYGUI_ICON_SIZE))
-                {
-                    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) SetIconPixel(currentIcons, selectedIcon, (int)cell.x, (int)cell.y);
-                    else if (IsMouseButtonDown(MOUSE_RIGHT_BUTTON)) ClearIconPixel(currentIcons, selectedIcon, (int)cell.x, (int)cell.y);
-                }
-            }
-        }
-        //----------------------------------------------------------------------------------
 
         // Screen scale logic (x2)
         //----------------------------------------------------------------------------------
@@ -861,8 +760,8 @@ int main(int argc, char *argv[])
             //--------------------------------------------------------------------------------
             int textPadding = GuiGetStyle(STATUSBAR, TEXT_PADDING);
             GuiSetStyle(STATUSBAR, TEXT_PADDING, 15);
-            GuiStatusBar((Rectangle){ 0, screenHeight - 24, 351, 24 }, TextFormat("LETTERS WROTE: %i/%i", getTextIndex(content), MAX_TEXT_SIZE));
-            GuiStatusBar((Rectangle){ 350, screenHeight - 24, screenWidth - 350, 24 }, TextFormat("SELECTED: %i - %s", selectedIcon, guiIconsName[selectedIcon]));
+            //GuiStatusBar((Rectangle){ 0, screenHeight - 24, 351, 24 }, TextFormat("LETTERS WROTE: %i/%i", getTextIndex(content), MAX_TEXT_SIZE));
+            //GuiStatusBar((Rectangle){ 350, screenHeight - 24, screenWidth - 350, 24 }, TextFormat("SELECTED: %i - %s", selectedIcon, guiIconsName[selectedIcon]));
             GuiSetStyle(STATUSBAR, TEXT_PADDING, textPadding);
             //--------------------------------------------------------------------------------
 
@@ -892,11 +791,11 @@ int main(int argc, char *argv[])
             {
                 Rectangle messageBox = { (float)screenWidth/2 - 300/2, (float)screenHeight/2 - 190/2 - 20, 300, 190 };
                 int result = GuiMessageBox(messageBox, "#220#Report Issue",
-                    "Do you want to report any issue or\nfeature request for this program?\n\nhttps://github.com/Discovery-Data-Lab/HugoCMS", "#186#Report on GitHub");
+                    "Do you want to report any issue or\nfeature request for this program?\n\nhttps://github.com/0l1ve1r4/StatiqPress", "#186#Report on GitHub");
 
-                if (result == 1)    // Report issue pressed
-                {
-                    OpenURL("https://github.com/Discovery-Data-Lab/HugoCMS/issues");
+                // Report issue pressed
+                if (result == 1) {
+                    OpenURL("https://github.com/0l1ve1r4/StatiqPress/issues");
                     showIssueReportWindow = false;
                 }
                 else if (result == 0) showIssueReportWindow = false;
@@ -905,28 +804,7 @@ int main(int argc, char *argv[])
 
             // GUI: Export Window
             //----------------------------------------------------------------------------------------
-            if (showExportWindow)
-            {
-                Rectangle messageBox = { (float)screenWidth/2 - 280/2, (float)screenHeight/2 - 176/2 - 30, 280, 176 };
-                int result = GuiMessageBox(messageBox, "#7#Export Iconset File", " ", "#7#Export Iconset");
-
-                GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 24 + 12, 106, 24 }, "Iconset Name:");
-                if (GuiTextBox((Rectangle){ messageBox.x + 12 + 92, messageBox.y + 24 + 12, 164, 24 }, styleNameText, 128, styleNameEditMode)) styleNameEditMode = !styleNameEditMode;
-
-                GuiLabel((Rectangle){ messageBox.x + 12, messageBox.y + 12 + 48 + 8, 106, 24 }, "File Format:");
-                GuiComboBox((Rectangle){ messageBox.x + 12 + 92, messageBox.y + 12 + 48 + 8, 164, 24 }, "raygui (.md);Image (.png);Code (.h)", &exportFormatActive);
-
-                if (exportFormatActive != 1) GuiDisable();
-                GuiCheckBox((Rectangle){ messageBox.x + 20, messageBox.y + 52 + 32 + 24, 16, 16 }, "Embed name IDs as zTXt chunk", &nameIdsChunkChecked);
-                GuiEnable();
-
-                if (result == 1)    // Export button pressed
-                {
-                    showExportWindow = false;
-                    showExportFileDialog = true;
-                }
-                else if (result == 0) showExportWindow = false;
-            }
+            if (showExportWindow){}
             //----------------------------------------------------------------------------------
 
             // GUI: Exit Window
@@ -944,13 +822,9 @@ int main(int argc, char *argv[])
             //----------------------------------------------------------------------------------------
             if (showLoadFileDialog)
             {
-#if defined(CUSTOM_MODAL_DIALOGS)
-                int result = GuiFileDialog(DIALOG_MESSAGE, "Load Markdown file ...", inFileName, "Ok", "Just drag and drop your .md style file!");
-#else
+
                 int result = GuiFileDialog(DIALOG_OPEN_FILE, "Load Markdown file", inFileName, "*.md", "Markdown Files (*.md)");
-#endif
-                if (result == 1)
-                {
+                if (result == 1) {
                     // Load gui icons data (and gui icon names for the tool)
                     char **tempIconsName = GuiLoadIcons(inFileName, true);
                     memcpy(currentIcons, guiIcons, RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS*sizeof(unsigned int));
@@ -965,113 +839,6 @@ int main(int argc, char *argv[])
             }
             //----------------------------------------------------------------------------------------
 
-            // GUI: Save File Dialog (and saving logic)
-            //----------------------------------------------------------------------------------------
-            if (showSaveFileDialog)
-            {
-#if defined(CUSTOM_MODAL_DIALOGS)
-                //int result = GuiFileDialog(DIALOG_TEXTINPUT, "Save raygui icons file...", outFileName, "Ok;Cancel", NULL);
-                int result = GuiTextInputBox((Rectangle){ screenWidth/2 - 280/2, screenHeight/2 - 112/2 - 30, 280, 112 }, "#2#Save raygui icon file...", NULL, "#2#Save", outFileName, 512, NULL);
-#else
-                int result = GuiFileDialog(DIALOG_SAVE_FILE, "Save Markdown file...", outFileName, "*.md", "raygui Icons Files (*.md)");
-#endif
-                if (result == 1)
-                {
-                    // Save icons file
-                    // Check for valid extension and make sure it is
-                    if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".md")) strcat(outFileName, ".md\0");
-
-                    // Save icons file
-                    SaveIcons(outFileName);
-
-                #if defined(PLATFORM_WEB)
-                    // Download file from MEMFS (emscripten memory filesystem)
-                    // NOTE: Second argument must be a simple filename (we can't use directories)
-                    // NOTE: Included security check to (partially) avoid malicious code on PLATFORM_WEB
-                    if (strchr(outFileName, '\'') == NULL) emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
-                #endif
-                }
-
-                if (result >= 0) showSaveFileDialog = false;
-            }
-            //----------------------------------------------------------------------------------------
-
-            // GUI: Export File Dialog (and saving logic)
-            //----------------------------------------------------------------------------------------
-            if (showExportFileDialog)
-            {
-#if defined(CUSTOM_MODAL_DIALOGS)
-                //int result = GuiFileDialog(DIALOG_TEXTINPUT, "Export raygui icons file...", outFileName, "Ok;Cancel", NULL);
-                int result = GuiTextInputBox((Rectangle){ screenWidth/2 - 280/2, screenHeight/2 - 112/2 - 60, 280, 112 }, "#7#Export raygui icon file...", NULL, "#7#Export", outFileName, 512, NULL);
-#else
-                char filters[64] = { 0 };   // Consider different supported file types
-
-                switch (exportFormatActive)
-                {
-                    case 0: strcpy(filters, "*.md"); strcat(outFileName, ".md"); break;   // Icons file (.md)
-                    case 1: strcpy(filters, "*.png"); strcat(outFileName, ".png"); break;   // Icons image (.png)
-                    case 2: strcpy(filters, "*.h"); strcat(outFileName, ".h"); break;       // Icons code (.h)
-                    default: break;
-                }
-
-                int result = GuiFileDialog(DIALOG_SAVE_FILE, "Export Markdown file...", outFileName, filters, TextFormat("File type (%s)", filters));
-#endif
-                if (result == 1)
-                {
-                    // Export file: outFileName
-                    switch (exportFormatActive)
-                    {
-                        case 0:
-                        {
-                            // Check for valid extension and make sure it is
-                            if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".md")) strcat(outFileName, ".md\0");
-                            SaveIcons(outFileName);
-                        } break;
-                        case 1:
-                        {
-                            // Check for valid extension and make sure it is
-                            if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".png")) strcat(outFileName, ".png\0");
-                            Image image = GenImageFromIconData(currentIcons, RAYGUI_ICON_MAX_ICONS, 16, 1);
-                            ExportImage(image, outFileName);
-                            UnloadImage(image);
-
-                            if (nameIdsChunkChecked)
-                            {
-                                // Concatenate all icons names into one string
-                                char *iconsNames = (char *)RL_CALLOC(RAYGUI_ICON_MAX_ICONS*32, 1);
-                                char *iconsNamesPtr = iconsNames;
-                                for (int i = 0, size = 0; i < RAYGUI_ICON_MAX_ICONS; i++)
-                                {
-                                    size = strlen(guiIconsName[i]);
-                                    memcpy(iconsNamesPtr, guiIconsName[i], size);
-                                    iconsNamesPtr[size] = ';';
-                                    iconsNamesPtr += (size + 1);
-                                }
-
-                                // Save icons name id into PNG zTXt chunk
-                                rpng_chunk_write_comp_text(outFileName, "Description", iconsNames);
-                                RL_FREE(iconsNames);
-                            }
-                        } break;
-                        case 2:
-                        {
-                            // Check for valid extension and make sure it is
-                            if ((GetFileExtension(outFileName) == NULL) || !IsFileExtension(outFileName, ".h")) strcat(outFileName, ".h\0");
-                            ExportIconsAsCode(outFileName);
-                        } break;
-                        default: break;
-                    }
-
-                #if defined(PLATFORM_WEB)
-                    // Download file from MEMFS (emscripten memory filesystem)
-                    // NOTE: Second argument must be a simple filename (we can't use directories)
-                    emscripten_run_script(TextFormat("saveFileFromMEMFSToDisk('%s','%s')", outFileName, GetFileName(outFileName)));
-                #endif
-                }
-
-                if (result >= 0) showExportFileDialog = false;
-            }
-
         EndTextureMode();
 
         BeginDrawing();
@@ -1082,14 +849,11 @@ int main(int argc, char *argv[])
             else DrawTextureRec(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, (Vector2){ 0, 0 }, WHITE);
 
             if (CurrentGuiMode == WRITING_MODE) {
-                if(UpdateTextbox(screenWidth, screenHeight, text, &editingText) == -1) {
+                if(newUpload() == -1) {
                     CurrentGuiMode = NULL_MODE;
                 }
             } 
-            else if (CurrentGuiMode == PREVIEW_MODE) {
-                int alignment = 0;
-                GuiDrawText(text, (Rectangle){ 0, 0, screenWidth, screenHeight }, alignment, WHITE);
-            } 
+
             else if (CurrentGuiMode == NULL_MODE) {
                 // TODO: some icon or wharever
             }
@@ -1104,336 +868,6 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
 
     return 0;
-}
-
-//--------------------------------------------------------------------------------------------
-// Module functions definition
-//--------------------------------------------------------------------------------------------
-#if defined(PLATFORM_DESKTOP)
-// Show command line usage info
-static void ShowCommandLineInfo(void)
-{
-    printf("\n//////////////////////////////////////////////////////////////////////////////////\n");
-    printf("//                                                                              //\n");
-    printf("// %s v%s - %s                //\n", toolName, toolVersion, toolDescription);
-    printf("// powered by raylib v%s and raygui v%s                               //\n", RAYLIB_VERSION, RAYGUI_VERSION);
-    printf("// more info and bugs-report: github.com/raylibtech/rtools                      //\n");
-    printf("// feedback and support:      ray[at]raylibtech.com                             //\n");
-    printf("//                                                                              //\n");
-    printf("// Copyright (c) 2019-2024 raylib technologies (@raylibtech)                    //\n");
-    printf("//                                                                              //\n");
-    printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
-
-    printf("USAGE:\n\n");
-    printf("    > rguiicons [--help] --input <filename.ext> [--output <filename.ext>]\n");
-
-    printf("\nOPTIONS:\n\n");
-    printf("    -h, --help                      : Show tool version and command line usage help\n");
-    printf("    -i, --input <filename.ext>      : Define input file.\n");
-    printf("                                      Supported extensions: .md\n");
-    printf("    -o, --output <filename.ext>     : Define output file.\n");
-    printf("                                      Supported extensions: .md, .png, .h\n");
-    printf("                                      NOTE: If not specified, defaults to: output.md\n\n");
-
-    printf("\nEXAMPLES:\n\n");
-    printf("    > rguiicons --input icons.md --output icons.png\n");
-    printf("        Process <icons.md> to generate <icons.png>\n\n");
-    printf("    > rguiicons --input icons.md --output ricons.h\n");
-    printf("        Process <icons.md> to generate <ricons.h>\n\n");
-}
-
-// Process command line input
-static void ProcessCommandLine(int argc, char *argv[])
-{
-    // CLI required variables
-    bool showUsageInfo = false;         // Toggle command line usage info
-
-    if (argc == 1) showUsageInfo = true;
-
-    // Process command line arguments
-    for (int i = 1; i < argc; i++)
-    {
-        if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0))
-        {
-            showUsageInfo = true;
-        }
-        else if ((strcmp(argv[i], "-i") == 0) || (strcmp(argv[i], "--input") == 0))
-        {
-            // Check for valid upcoming argument
-            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
-            {
-                // Check for valid file extension: input
-                if (IsFileExtension(argv[i + 1], ".md"))
-                {
-                    strcpy(inFileName, argv[i + 1]);    // Read input file
-                }
-                else printf("WARNING: Input file extension not recognized.\n");
-
-                i++;
-            }
-            else printf("WARNING: No input file provided\n");
-        }
-        else if ((strcmp(argv[i], "-o") == 0) || (strcmp(argv[i], "--output") == 0))
-        {
-            // Check for valid upcoming argumment and valid file extension: output
-            if (((i + 1) < argc) && (argv[i + 1][0] != '-'))
-            {
-                // Check for valid file extension: output
-                if (IsFileExtension(argv[i + 1], ".md") ||
-                    IsFileExtension(argv[i + 1], ".png") ||
-                    IsFileExtension(argv[i + 1], ".h"))
-                {
-                    strcpy(outFileName, argv[i + 1]);   // Read output filename
-                }
-                else printf("WARNING: Output file extension not recognized.\n");
-
-                i++;
-            }
-            else printf("WARNING: No output file provided\n");
-        }
-    }
-
-    // Process input file if provided
-    if (inFileName[0] != '\0')
-    {
-        // Set a default name for output in case not provided
-        if (outFileName[0] == '\0') strcpy(outFileName, "output.md");
-
-        printf("\nInput file:       %s", inFileName);
-        printf("\nOutput file:      %s", outFileName);
-
-        // Load input file: icons data and name ids
-        char **tempIconsName = GuiLoadIcons(inFileName, true);
-        memcpy(currentIcons, guiIcons, RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS*sizeof(unsigned int));
-        for (int i = 0; i < RAYGUI_ICON_MAX_ICONS; i++) { strcpy(guiIconsName[i], tempIconsName[i]); free(tempIconsName[i]); }
-        free(tempIconsName);
-
-        // Process input --> output
-        if (IsFileExtension(outFileName, ".md")) SaveIcons(outFileName);
-        else if (IsFileExtension(outFileName, ".png"))
-        {
-            Image image = GenImageFromIconData(currentIcons, RAYGUI_ICON_MAX_ICONS, 16, 1);
-            ExportImage(image, outFileName);
-            UnloadImage(image);
-
-            // Concatenate all icons names into one string
-            char *iconsNames = (char *)RL_CALLOC(RAYGUI_ICON_MAX_ICONS*32, 1);
-            char *iconsNamesPtr = iconsNames;
-            for (int i = 0, size = 0; i < RAYGUI_ICON_MAX_ICONS; i++)
-            {
-                size = strlen(guiIconsName[i]);
-                memcpy(iconsNamesPtr, guiIconsName[i], size);
-                iconsNamesPtr[size] = ';';
-                iconsNamesPtr += (size + 1);
-            }
-
-            // Save icons name id into PNG zTXt chunk
-            rpng_chunk_write_comp_text(outFileName, "Description", iconsNames);
-            RL_FREE(iconsNames);
-        }
-        else if (IsFileExtension(outFileName, ".h")) ExportIconsAsCode(outFileName);
-    }
-
-    if (showUsageInfo) ShowCommandLineInfo();
-}
-#endif      // PLATFORM_DESKTOP
-
-//--------------------------------------------------------------------------------------------
-// Load/Save/Export data functions
-//--------------------------------------------------------------------------------------------
-
-// Save raygui icons file (.md)
-static int SaveIcons(const char *fileName) {
-    // raygui Icons File Structure (.md)
-    // ------------------------------------------------------
-    // Offset  | Size    | Type       | Description
-    // ------------------------------------------------------
-    // 0       | 4       | char       | Signature: "rGI "
-    // 4       | 2       | short      | Version: 100
-    // 6       | 2       | short      | reserved
-
-    // 8       | 2       | short      | Num icons (N)
-    // 10      | 2       | short      | Icons size (Options: 16, 32, 64) (S)
-
-    // Icons name id (32 bytes per name id)
-    // foreach (icon)
-    // {
-    //   12+32*i  | 32   | char       | Icon NameId
-    // }
-
-    // Icons data: One bit per pixel, stored as unsigned int array (depends on icon size)
-    // S*S pixels/32bit per unsigned int = K unsigned int per icon
-    // foreach (icon)
-    // {
-    //   ...   | K       | unsigned int | Icon Data
-    // }
-
-    int result = -1;
-    FILE *rgiFile = fopen(fileName, "wb");
-
-    if (rgiFile != NULL)
-    {
-        char signature[5] = "rGI ";
-        short version = 100;
-        short reserved = 0;
-        short iconCount = RAYGUI_ICON_MAX_ICONS;
-        short iconSize = RAYGUI_ICON_SIZE;
-
-        fwrite(signature, sizeof(char), 4, rgiFile);
-        fwrite(&version, sizeof(short), 1, rgiFile);
-        fwrite(&reserved, sizeof(short), 1, rgiFile);
-        fwrite(&iconCount, sizeof(short), 1, rgiFile);
-        fwrite(&iconSize, sizeof(short), 1, rgiFile);
-
-        for (int i = 0; i < iconCount; i++)
-        {
-            // Write icons name id
-            fwrite(guiIconsName[i], 1, RAYGUI_ICON_MAX_NAME_LENGTH, rgiFile);
-        }
-
-        for (int i = 0; i < iconCount; i++)
-        {
-            // Write icons data
-            fwrite(GetIconData(currentIcons, i), sizeof(unsigned int), (iconSize*iconSize/32), rgiFile);
-        }
-
-        fclose(rgiFile);
-        result = 0;
-    }
-
-    return result;
-}
-
-// Export gui icons as code (.h)
-static void ExportIconsAsCode(const char *fileName)
-{
-    FILE *codeFile = fopen(fileName, "wt");
-
-    if (codeFile != NULL)
-    {
-        fprintf(codeFile, "//////////////////////////////////////////////////////////////////////////////////\n");
-        fprintf(codeFile, "//                                                                              //\n");
-        fprintf(codeFile, "// raygui Icons exporter v1.1 - Icons data exported as a values array           //\n");
-        fprintf(codeFile, "//                                                                              //\n");
-        fprintf(codeFile, "// more info and bugs-report:  github.com/raysan5/raygui                        //\n");
-        fprintf(codeFile, "// feedback and support:       ray[at]raylibtech.com                            //\n");
-        fprintf(codeFile, "//                                                                              //\n");
-        fprintf(codeFile, "// Copyright (c) 2019-2024 raylib technologies (@raylibtech)                    //\n");
-        fprintf(codeFile, "//                                                                              //\n");
-        fprintf(codeFile, "//////////////////////////////////////////////////////////////////////////////////\n\n");
-
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-        fprintf(codeFile, "// Defines and Macros\n");
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-        fprintf(codeFile, "#define RAYGUI_ICON_SIZE             %i   // Size of icons (squared)\n", RAYGUI_ICON_SIZE);
-        fprintf(codeFile, "#define RAYGUI_ICON_MAX_ICONS       %i   // Maximum number of icons\n", RAYGUI_ICON_MAX_ICONS);
-        fprintf(codeFile, "#define RAYGUI_ICON_MAX_NAME_LENGTH  %i   // Maximum length of icon name id\n\n", RAYGUI_ICON_MAX_NAME_LENGTH);
-
-        fprintf(codeFile, "// Icons data is defined by bit array (every bit represents one pixel)\n");
-        fprintf(codeFile, "// Those arrays are stored as unsigned int data arrays, so every array\n");
-        fprintf(codeFile, "// element defines 32 pixels (bits) of information\n");
-        fprintf(codeFile, "// Number of elemens depend on RAYGUI_ICON_SIZE (by default 16x16 pixels)\n");
-        fprintf(codeFile, "#define RAYGUI_ICON_DATA_ELEMENTS   (RAYGUI_ICON_SIZE*RAYGUI_ICON_SIZE/32)\n\n");
-
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-        fprintf(codeFile, "// Icons enumeration\n");
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-
-        fprintf(codeFile, "typedef enum {\n");
-        for (int i = 0; i < RAYGUI_ICON_MAX_ICONS; i++) fprintf(codeFile, "    ICON_%-24s = %i,\n", (guiIconsName[i][0] != '\0')? guiIconsName[i] : TextFormat("%03i", i), i);
-        fprintf(codeFile, "} guiIconName;\n\n");
-
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-        fprintf(codeFile, "// Icons data\n");
-        fprintf(codeFile, "//----------------------------------------------------------------------------------\n");
-
-        fprintf(codeFile, "static unsigned int guiIcons[RAYGUI_ICON_MAX_ICONS*RAYGUI_ICON_DATA_ELEMENTS] = {\n");
-        for (int i = 0; i < RAYGUI_ICON_MAX_ICONS; i++)
-        {
-            unsigned int *icon = GetIconData(currentIcons, i);
-
-            fprintf(codeFile, "    ");
-            for (int j = 0; j < RAYGUI_ICON_DATA_ELEMENTS; j++) fprintf(codeFile, "0x%08x, ", icon[j]);
-
-            fprintf(codeFile, "     // ICON_%s\n", (guiIconsName[i][0] != '\0')? guiIconsName[i] : TextFormat("%03i", i));
-        }
-        fprintf(codeFile, "};\n\n");
-
-        fprintf(codeFile, "// NOTE: A pointer to the current icons array should be defined\n");
-        fprintf(codeFile, "static unsigned int *guiIconsPtr = guiIcons;\n");
-
-        fclose(codeFile);
-    }
-}
-
-//--------------------------------------------------------------------------------------------
-// Auxiliar functions
-//--------------------------------------------------------------------------------------------
-
-// Gen GRAYSCALE image from and array of bits stored as int (0-BLANK, 1-WHITE)
-static Image GenImageFromIconData(unsigned int *icons, int iconCount, int iconsPerLine, int padding)
-{
-    //#define RGI_BIT_CHECK(a,b) ((a) & (1<<(b)))
-
-    Image image = { 0 };
-
-    int lines = iconCount/iconsPerLine;
-    if (iconCount%iconsPerLine > 0) lines++;
-
-    image.width = (RAYGUI_ICON_SIZE + 2*padding)*iconsPerLine;
-    image.height = (RAYGUI_ICON_SIZE + 2*padding)*lines;
-    image.mipmaps = 1;
-    image.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
-    image.data = (unsigned char *)calloc(image.width*image.height, 1);  // All pixels BLACK by default
-
-    int pixelX = 0;
-    int pixelY = 0;
-
-    for (int n = 0; n < iconCount; n++)
-    {
-        for (int i = 0, y = 0; i < RAYGUI_ICON_SIZE*RAYGUI_ICON_SIZE/32; i++)
-        {
-            for (int k = 0; k < 32; k++)
-            {
-                pixelX = padding + (n%iconsPerLine)*(RAYGUI_ICON_SIZE + 2*padding) + (k%RAYGUI_ICON_SIZE);
-                pixelY = padding + (n/iconsPerLine)*(RAYGUI_ICON_SIZE + 2*padding) + y;
-
-                if (RGI_BIT_CHECK(icons[n*RAYGUI_ICON_DATA_ELEMENTS + i], k)) ((unsigned char *)image.data)[pixelY*image.width + pixelX] = 0xff;    // Draw pixel WHITE
-
-                if ((k == (RAYGUI_ICON_SIZE - 1)) || (k == 31)) y++;  // Move to next pixels line
-            }
-        }
-    }
-
-    return image;
-}
-
-// Get icon bit data
-// NOTE: Bit data array grouped as unsigned int (RAYGUI_ICON_SIZE*RAYGUI_ICON_SIZE/32 elements)
-unsigned int *GetIconData(unsigned int *iconset, int iconId)
-{
-    static unsigned int iconData[RAYGUI_ICON_DATA_ELEMENTS] = { 0 };
-    memset(iconData, 0, RAYGUI_ICON_DATA_ELEMENTS*sizeof(unsigned int));
-
-    if (iconId < RAYGUI_ICON_MAX_ICONS) memcpy(iconData, &iconset[iconId*RAYGUI_ICON_DATA_ELEMENTS], RAYGUI_ICON_DATA_ELEMENTS*sizeof(unsigned int));
-
-    return iconData;
-}
-
-// Set icon pixel value
-void SetIconPixel(unsigned int *iconset, int iconId, int x, int y)
-{
-    // This logic works for any RAYGUI_ICON_SIZE pixels icons,
-    // For example, in case of 16x16 pixels, every 2 lines fit in one unsigned int data element
-    RGI_BIT_SET(iconset[iconId*RAYGUI_ICON_DATA_ELEMENTS + y/(sizeof(unsigned int)*8/RAYGUI_ICON_SIZE)], x + (y%(sizeof(unsigned int)*8/RAYGUI_ICON_SIZE)*RAYGUI_ICON_SIZE));
-}
-
-// Clear icon pixel value
-void ClearIconPixel(unsigned int *iconset, int iconId, int x, int y)
-{
-    // This logic works for any RAYGUI_ICON_SIZE pixels icons,
-    // For example, in case of 16x16 pixels, every 2 lines fit in one unsigned int data element
-    RGI_BIT_CLEAR(iconset[iconId*RAYGUI_ICON_DATA_ELEMENTS + y/(sizeof(unsigned int)*8/RAYGUI_ICON_SIZE)], x + (y%(sizeof(unsigned int)*8/RAYGUI_ICON_SIZE)*RAYGUI_ICON_SIZE));
 }
 
 int getTextIndex(char text[]) {

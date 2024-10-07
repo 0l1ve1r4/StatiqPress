@@ -8,17 +8,17 @@
 #include <string.h>     
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
+#include "raygui.h"
 
-#if defined(PLATFORM_DESKTOP) && !defined(CUSTOM_MODAL_DIALOGS)
-    #include "external/tinyfiledialogs.h"  
-#else
-    #include "raygui.h"
-#endif
+//----------------------------------------------------------------------------------
+// Defines and Macros
+//----------------------------------------------------------------------------------
+//...
 
-#define MAX_TEXT_SIZE __UINT16_MAX__
-#define MAX_INPUT_CHARS 64
-
-char* getMarkdownMainContent(void);
+//----------------------------------------------------------------------------------
+// Types and Structures Definition
+//----------------------------------------------------------------------------------
 
 typedef struct {
     char variable_type[__UINT8_MAX__];
@@ -29,23 +29,44 @@ typedef struct {
 
 } MarkdownVariable_t;
 
+//----------------------------------------------------------------------------------
+// Internal Module Variables Definition
+//----------------------------------------------------------------------------------
+
+static const uint16_t maxContentSize = __UINT16_MAX__;
+static const uint8_t maxInputChars = __UINT8_MAX__;
+
 static MarkdownVariable_t markdownVariables[] = {
     {"title", "Title *", "", false, false},
-    {"date", "Date *", "2024-10-03T10:00:00+02:00", false, false},
-    {"tags", "Tags *", "aprendizado de máquina, redes neurais", false, false},
-    {"categories", "Categories *", "inteligência artificial", false, false},
+    {"date", "Date *", "2024-10-03T10:00:00-03:00", false, false},
+    {"tags", "Tags *", "LowLevelProgrammimg, Neural Networks", false, false},
+    {"categories", "Categories *", "Artificial Inteligence", false, false},
     {"description", "Description *", "", false, false},
     {"banner", "Banner", "", false, false},
     {"authors", "Authors *", "", false, false},
 
 };
 
+//----------------------------------------------------------------------------------
+// Global Variables Definition
+//----------------------------------------------------------------------------------
+
+char markdownContentIn[__UINT16_MAX__] = { 0 };
+
+//----------------------------------------------------------------------------------
+// Internal Module Functions Definition
+//----------------------------------------------------------------------------------
+
+
+static char* getMarkdownMainContent(void);
+
+
 #define BANNER_IINDEX 5
 #define NUM_MARKDOWN_VARIABLES 7
 #define UPLOADS_SAVE_FOLDER "uploads/"
 #define UPLOADS_SAVE_FILE "uploads/post.md" 
 
-char content[MAX_TEXT_SIZE] = ""; // Variable to store the content.
+
 
 
 int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[], 
@@ -53,7 +74,7 @@ int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[]
 
 void saveMarkdownPost(void);
 
-int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingText) {
+int8_t newUpload(void){
     int labelWidth = 200;
     int labelHeight = 30;
     int inputWidth = 500;
@@ -77,12 +98,12 @@ int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingT
         
         if (markdownVariables[i].editMode) {
             // Allow editing when editMode is true
-            if (GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, MAX_INPUT_CHARS, true)) {
+            if (GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, maxInputChars, true)) {
                 markdownVariables[i].editMode = true;
             }
         } else {
             // Regular display mode
-            GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, MAX_INPUT_CHARS, false);
+            GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, maxInputChars, false);
         }
 
         // Check for mouse click to toggle edit mode
@@ -110,14 +131,14 @@ int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingT
     // Button to get post content, aligned to the right
     if (GuiButton((Rectangle){ xInput, initialY + ((NUM_MARKDOWN_VARIABLES+2) * yStep), 
         inputWidth, labelHeight }, "Get Post Content")) {
-        strcpy(content, getMarkdownMainContent()); // Update the content variable
+        strcpy(markdownContentIn, getMarkdownMainContent()); // Update the content variable
     }
 
     
 
     // Display the content box
     GuiLabel((Rectangle){ xContentBox, yContentBox - labelHeight, contentBoxWidth, labelHeight }, "Content* (.md style, max letters: 4096) ");
-    GuiTextBoxMulti((Rectangle){ xContentBox, yContentBox, contentBoxWidth, contentBoxHeight }, content, MAX_INPUT_CHARS, true);
+    GuiTextBoxMulti((Rectangle){ xContentBox, yContentBox, contentBoxWidth, contentBoxHeight }, markdownContentIn, maxInputChars, true);
 
     if (result == 0) return -1;
     if (result == 1) {
@@ -148,6 +169,19 @@ void erase() {
     //TODO
 }
 
+/*
++++
+title = "Ciências de Dados: Um Guia para Iniciantes"
+date = "2024-10-03T10:30:00+02:00"
+tags = ["ciências de dados", "análise", "estatística", "aprendizado de máquina"]
+categories = ["dados"]
+description = "Este post explora os fundamentos da ciência de dados, desde a coleta e limpeza de dados até a análise avançada usando aprendizado de máquina."
+banner = "img/banners/datascience-banner.png"
+authors = ["Guilherme Oliveira"]
++++
+
+*/
+
 void saveMarkdownPost(void){
     FILE *file = fopen(UPLOADS_SAVE_FILE, "w+");
     if (file == NULL) {
@@ -157,12 +191,20 @@ void saveMarkdownPost(void){
     
     fprintf(file, "+++\n");
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
-        fprintf(file, "%s: %s\n", markdownVariables[i].variable_type, markdownVariables[i].default_value);
+        if (strcmp(markdownVariables[i].variable_type, "tags") == 0 ||
+            strcmp(markdownVariables[i].variable_type, "categories") == 0 ||
+            strcmp(markdownVariables[i].variable_type, "authors") == 0) {
+            fprintf(file, "%s: [\"%s\"]\n", markdownVariables[i].variable_type, 
+                    markdownVariables[i].default_value);
+        } else {
+
+        fprintf(file, "%s: \"%s\"\n", markdownVariables[i].variable_type, 
+                markdownVariables[i].default_value);
+        }
     }
     fprintf(file, "+++\n");
 
-    fprintf(file, "%s", content);
-
+    fprintf(file, "%s", markdownContentIn);
     fclose(file);
 
 }
@@ -178,7 +220,7 @@ char* getMarkdownMainContent(void) {
             exit(1);
         }
 
-        char *content = (char *)malloc(MAX_TEXT_SIZE);
+        char *content = (char *)malloc(maxContentSize);
         if (content == NULL) {
             printf("Error allocating memory!\n");
             exit(1);  
@@ -187,9 +229,9 @@ char* getMarkdownMainContent(void) {
         // Initialize content to avoid undefined behavior with strcat
         content[0] = '\0'; 
 
-        char line[MAX_TEXT_SIZE];
+        char line[maxContentSize];
         while (fgets(line, sizeof(line), file)) {
-            if (strlen(content) + strlen(line) >= MAX_TEXT_SIZE) {
+            if (strlen(content) + strlen(line) >= maxContentSize) {
                 printf("File content too large!\n");
                 free(content);
                 fclose(file);
