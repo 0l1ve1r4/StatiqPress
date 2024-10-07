@@ -184,7 +184,7 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     GuiPanel((Rectangle){ state->anchorRight.x, state->anchorRight.y, 104, 40 }, NULL);
 
     // Project/File options
-    GuiSetTooltip("Create new post (LCTRL+N)");
+    GuiSetTooltip("New Upload (LCTRL+N)");
     state->btnNewFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12, state->anchorFile.y + 8, 24, 24 }, "#8#");
     GuiSetTooltip("Load .md file (LCTRL+O)");
     state->btnLoadFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 28 + 4, state->anchorFile.y + 8, 24, 24 }, "#5#");

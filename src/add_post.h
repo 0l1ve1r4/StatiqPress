@@ -15,7 +15,7 @@
     #include "raygui.h"
 #endif
 
-#define MAX_TEXT_SIZE 4096
+#define MAX_TEXT_SIZE __UINT16_MAX__
 #define MAX_INPUT_CHARS 64
 
 char* getMarkdownMainContent(void);
@@ -45,7 +45,7 @@ static MarkdownVariable_t markdownVariables[] = {
 #define UPLOADS_SAVE_FOLDER "uploads/"
 #define UPLOADS_SAVE_FILE "uploads/post.md" 
 
-char content[MAX_INPUT_CHARS] = ""; // Variable to store the content.
+char content[MAX_TEXT_SIZE] = ""; // Variable to store the content.
 
 
 int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[], 
@@ -69,7 +69,7 @@ int UpdateTextbox(int screenWidth, int screenHeight, char text[], bool *editingT
     int xContentBox = labelWidth + padding + inputWidth + padding; // Align content box to the right
     int yContentBox = initialY; // Keep it aligned with other elements
 
-    int result = WINDOW_BAR("Add New Post", "", "Deploy to your Gitub Repository");
+    int result = WINDOW_BAR("New Upload", "", "Deploy to your Gitub Repository");
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
         // Display the label on the left
         GuiLabel((Rectangle){ xLabel, initialY + i * yStep, labelWidth, labelHeight }, 
@@ -198,12 +198,14 @@ char* getMarkdownMainContent(void) {
                 return content;
             }
             strcat(content, line);
+                printf("%s", line);
             #if defined(_DEBUG)
                 printf("%s", line);
             #endif  
         }
 
         fclose(file);
+
         return content;
     }
     return NULL; // If file was not selected or dialog canceled
