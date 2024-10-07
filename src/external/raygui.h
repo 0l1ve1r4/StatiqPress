@@ -2759,7 +2759,7 @@ int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
     return result;      // Mouse button pressed: result = 1
 }
 
-/*
+
 // Text Box control with multiple lines and word-wrap
 // NOTE: This text-box is readonly, no editing supported by default
 bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
@@ -2779,7 +2779,7 @@ bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
 
     return pressed;
 }
-*/
+
 
 // Spinner control, returns selected value
 int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode)

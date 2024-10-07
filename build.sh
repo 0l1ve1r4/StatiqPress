@@ -73,7 +73,8 @@ build_binary
 create_application_dir
 cd src/ && make clean || { echo "Failed to clean up object files"; exit 1; }
 
-read -p "Do you want to run the application now? (y/n): " run_app
+# read -p "Do you want to run the application now? (y/n): " run_app
+run_app="y"
 if [ "$run_app" == "y" ]; then
     cd "../$APPLICATION_DIR" || { echo "Failed to change directory to application directory"; exit 1; }
     ./SqPress

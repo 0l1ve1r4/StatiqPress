@@ -48,7 +48,6 @@ typedef struct {
     
     // File options
     bool btnNewFilePressed;
-    bool btnNewMemberPressed;
     bool btnLoadFilePressed;
     bool btnSaveFilePressed;
     bool btnExportFilePressed;
@@ -137,7 +136,6 @@ GuiMainToolbarState InitGuiMainToolbar(void)
 
     // Project/File options
     state.btnNewFilePressed = false;
-    state.btnNewMemberPressed = false;
     state.btnLoadFilePressed = false;
     state.btnSaveFilePressed = false;
     state.btnExportFilePressed = false;
@@ -173,7 +171,7 @@ GuiMainToolbarState InitGuiMainToolbar(void)
 
 void GuiMainToolbar(GuiMainToolbarState *state)
 {
-    int screenWidth = 640;  // WARNING: Screen width is hardcoded to avoid issues on screen scaling!
+    int screenWidth = 1600;  // WARNING: Screen width is hardcoded to avoid issues on screen scaling!
 
     // Toolbar panels
     state->anchorRight.x = screenWidth - 104;       // Update right-anchor panel
@@ -188,14 +186,12 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     // Project/File options
     GuiSetTooltip("Create new post (LCTRL+N)");
     state->btnNewFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12, state->anchorFile.y + 8, 24, 24 }, "#8#");
-    GuiSetTooltip("Create new Member (LCTRL+N)");
-    state->btnNewMemberPressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 24 + 4, state->anchorFile.y + 8, 24, 24 }, "#8#");
     GuiSetTooltip("Load .md file (LCTRL+O)");
-    state->btnLoadFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 48 + 4, state->anchorFile.y + 8, 24, 24 }, "#5#");
+    state->btnLoadFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 28 + 4, state->anchorFile.y + 8, 24, 24 }, "#5#");
     GuiSetTooltip("Save .md file (LCTRL+S)");
-    state->btnSaveFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 72 + 8, state->anchorFile.y + 8, 24, 24 }, "#6#");
+    state->btnSaveFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 48 + 4, state->anchorFile.y + 8, 24, 24 }, "#6#");
     GuiSetTooltip("Upload post (LCTRL+E)");
-    state->btnExportFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 96 + 12, state->anchorFile.y + 8, 24, 24 }, "#7#");
+    state->btnExportFilePressed = GuiButton((Rectangle){ state->anchorFile.x + 12 + 72 + 8, state->anchorFile.y + 8, 24, 24 }, "#7#");
 
     // Edit options
     GuiSetTooltip("Cut selected icon (LCTRL+X)");
@@ -209,9 +205,9 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     state->btnPreviewPressed = GuiButton((Rectangle){ state->anchorEdit.x + 12 + 96 + 24, state->anchorEdit.y + 8, 24, 24 }, "#079#");  // Clean
 
     // Visuals options
-    GuiLabel((Rectangle){ state->anchorVisuals.x + 10, state->anchorVisuals.y + 8, 60, 24 }, "Style:");
+    GuiLabel((Rectangle){ state->anchorVisuals.x -80, state->anchorVisuals.y + 8, 70, 24 }, "Style:");
     GuiSetTooltip("Select visual UI style");
-    GuiComboBox((Rectangle){ state->anchorVisuals.x + 8 + 48, state->anchorVisuals.y + 8, 120, 24 }, "Light;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish;Dark;Cherry;Sunny;Enefete", &state->visualStyleActive);
+    GuiComboBox((Rectangle){ state->anchorVisuals.x, state->anchorVisuals.y + 8, 120+50, 24 }, "Light;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish;Dark;Cherry;Sunny;Enefete", &state->visualStyleActive);
 
     // Info options
     GuiSetTooltip("Show help window (F1)");

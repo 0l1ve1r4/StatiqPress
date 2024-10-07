@@ -140,9 +140,6 @@
 #define GUI_FILE_DIALOGS_IMPLEMENTATION
 #include "gui_file_dialogs.h"               // GUI: File Dialogs
 
-#define GUI_NEW_MEMBER_IMPLEMENTATION
-#include "add_member.h"                     // GUI: Add Member Window
-
 #define GUI_NEW_POST_IMPLEMENTATION
 #include "add_post.h"                     // GUI: Add Member Window
 
@@ -779,7 +776,6 @@ int main(int argc, char *argv[])
 
         // Help options logic
         if (mainToolbarState.btnNewFilePressed) CurrentGuiMode = WRITING_MODE;           // New post logic
-        if (mainToolbarState.btnNewMemberPressed) CurrentGuiMode = NEW_MEMBER_MODE;      // New member logic
         if (mainToolbarState.btnHelpPressed) windowHelpState.windowActive = true;       // Help button logic
         if (mainToolbarState.btnAboutPressed) windowAboutState.windowActive = true;     // About window button logic
         if (mainToolbarState.btnIssuePressed) showIssueReportWindow = true;             // Issue report window button logic
@@ -865,7 +861,7 @@ int main(int argc, char *argv[])
             //--------------------------------------------------------------------------------
             int textPadding = GuiGetStyle(STATUSBAR, TEXT_PADDING);
             GuiSetStyle(STATUSBAR, TEXT_PADDING, 15);
-            GuiStatusBar((Rectangle){ 0, screenHeight - 24, 351, 24 }, TextFormat("LETTERS WROTE: %i/%i", getTextIndex(text), MAX_TEXT_SIZE));
+            GuiStatusBar((Rectangle){ 0, screenHeight - 24, 351, 24 }, TextFormat("LETTERS WROTE: %i/%i", getTextIndex(content), MAX_TEXT_SIZE));
             GuiStatusBar((Rectangle){ 350, screenHeight - 24, screenWidth - 350, 24 }, TextFormat("SELECTED: %i - %s", selectedIcon, guiIconsName[selectedIcon]));
             GuiSetStyle(STATUSBAR, TEXT_PADDING, textPadding);
             //--------------------------------------------------------------------------------
@@ -1093,11 +1089,6 @@ int main(int argc, char *argv[])
             else if (CurrentGuiMode == PREVIEW_MODE) {
                 int alignment = 0;
                 GuiDrawText(text, (Rectangle){ 0, 0, screenWidth, screenHeight }, alignment, WHITE);
-            } 
-            else if (CurrentGuiMode == NEW_MEMBER_MODE) {
-               if(addNewMember() == -1) {
-                     CurrentGuiMode = NULL_MODE;
-               }
             } 
             else if (CurrentGuiMode == NULL_MODE) {
                 // TODO: some icon or wharever
