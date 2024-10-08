@@ -501,8 +501,6 @@ int main(void)
 
     // GUI: Main layout
     //-----------------------------------------------------------------------------------
-    int selectedIcon = 0;
-
     // ToggleGroup() text
     // NOTE: Every icon requires 6 text characters: "#001#;"
     char toggleIconsText[RAYGUI_ICON_MAX_ICONS*6] = { 0 };

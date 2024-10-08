@@ -24,8 +24,11 @@ typedef struct {
     char variable_type[__UINT8_MAX__];
     char label_name[__UINT8_MAX__];
     char default_value[__UINT8_MAX__];
+    bool isRequired;    
+    bool isList;    
     bool boxActive;
     bool editMode;
+
 
 } MarkdownVariable_t;
 
@@ -35,17 +38,20 @@ typedef struct {
 
 static const uint16_t maxContentSize = __UINT16_MAX__;
 static const uint8_t maxInputChars = __UINT8_MAX__;
+static bool isMissingRequiredVariable = false;
 
 static MarkdownVariable_t markdownVariables[] = {
-    {"title", "Title *", "", false, false},
-    {"date", "Date *", "2024-10-03T10:00:00-03:00", false, false},
-    {"tags", "Tags *", "LowLevelProgrammimg, Neural Networks", false, false},
-    {"categories", "Categories *", "Artificial Inteligence", false, false},
-    {"description", "Description *", "", false, false},
-    {"banner", "Banner", "", false, false},
-    {"authors", "Authors *", "", false, false},
+    {"title", "Title", "",                                          true, false, false, false},
+    {"date", "Date", "2024-10-03T10:00:00-03:00",                   true, false, false, false},
+    {"tags", "Tags", "LowLevelProgrammimg,Neural Networks",         true, true, false, false},
+    {"categories", "Categories", "Artificial Inteligence,Python",   true, true, false, false},
+    {"description", "Description", "",                              true, false, false, false},
+    {"banner", "Banner", "",                                        true, false, false, false},
+    {"authors", "Authors", "",                                      true, true, false, false},
 
 };
+
+#define NUM_MARKDOWN_VARIABLES (int) (sizeof(markdownVariables)/sizeof(MarkdownVariable_t))
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition
@@ -60,14 +66,8 @@ char markdownContentIn[__UINT16_MAX__] = { 0 };
 
 static char* getMarkdownMainContent(void);
 
-
-#define BANNER_IINDEX 5
-#define NUM_MARKDOWN_VARIABLES 7
 #define UPLOADS_SAVE_FOLDER "uploads/"
 #define UPLOADS_SAVE_FILE "uploads/post.md" 
-
-
-
 
 int getFilePath(char *inFilePath, bool isCustomModelDialog, char fileExtension[], 
                 char fileDescription[]);
@@ -93,9 +93,13 @@ int8_t newUpload(void){
     int result = WINDOW_BAR("New Upload", "", "Deploy to your Gitub Repository");
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
         // Display the label on the left
-        GuiLabel((Rectangle){ xLabel, initialY + i * yStep, labelWidth, labelHeight }, 
+        if (markdownVariables[i].isRequired) {
+            GuiLabel((Rectangle){ xLabel, initialY + i * yStep, labelWidth, labelHeight }, 
+                TextFormat("%s*", markdownVariables[i].label_name));
+        } else {
+            GuiLabel((Rectangle){ xLabel, initialY + i * yStep, labelWidth, labelHeight }, 
             markdownVariables[i].label_name);
-        
+        }
         if (markdownVariables[i].editMode) {
             // Allow editing when editMode is true
             if (GuiTextBox((Rectangle){ xInput, initialY + i * yStep, inputWidth, inputHeight }, markdownVariables[i].default_value, maxInputChars, true)) {
@@ -140,6 +144,10 @@ int8_t newUpload(void){
     GuiLabel((Rectangle){ xContentBox, yContentBox - labelHeight, contentBoxWidth, labelHeight }, "Content* (.md style, max letters: 4096) ");
     GuiTextBoxMulti((Rectangle){ xContentBox, yContentBox, contentBoxWidth, contentBoxHeight }, markdownContentIn, maxInputChars, true);
 
+    if (isMissingRequiredVariable) {
+        missingVariableMessage();
+    }
+
     if (result == 0) return -1;
     if (result == 1) {
         return -1;
@@ -169,33 +177,60 @@ void erase() {
     //TODO
 }
 
-/*
-+++
-title = "Ciências de Dados: Um Guia para Iniciantes"
-date = "2024-10-03T10:30:00+02:00"
-tags = ["ciências de dados", "análise", "estatística", "aprendizado de máquina"]
-categories = ["dados"]
-description = "Este post explora os fundamentos da ciência de dados, desde a coleta e limpeza de dados até a análise avançada usando aprendizado de máquina."
-banner = "img/banners/datascience-banner.png"
-authors = ["Guilherme Oliveira"]
-+++
+// Returns 1 if there is a missing required variable, 0 otherwise
+static void checkMissingVariable(void) {
+    for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
+        if (markdownVariables[i].isRequired && strlen(markdownVariables[i].default_value) == 0) {
+            markdownVariables[i].boxActive = true;
+            isMissingRequiredVariable = true;
+            return;
+        }
+    }
+    isMissingRequiredVariable = false;
+}
 
-*/
+void missingVariableMessage(void) {
+    char** missingVariables = (char **)malloc(NUM_MARKDOWN_VARIABLES * sizeof(char *));
+    for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
+        if (markdownVariables[i].boxActive) {
+            missingVariables[i] = markdownVariables[i].label_name;
+        } else {
+            missingVariables[i] = "";
+        }
+    }
+
+
+    int isPressedBox = GuiMessageBox((Rectangle){ 0, 0, GetScreenWidth(), GetScreenHeight() }, 
+                    "Missing Required Variable", "Please fill in all required variables before saving.", 
+                    "Ok");
+    if (isPressedBox == 0 || isPressedBox == 1) {
+        isMissingRequiredVariable = false;
+    }
+}
 
 void saveMarkdownPost(void){
+    checkMissingVariable();
+        
     FILE *file = fopen(UPLOADS_SAVE_FILE, "w+");
     if (file == NULL) {
         printf("Error opening file!\n");
         exit(1);
     }
     
+    
     fprintf(file, "+++\n");
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
-        if (strcmp(markdownVariables[i].variable_type, "tags") == 0 ||
-            strcmp(markdownVariables[i].variable_type, "categories") == 0 ||
-            strcmp(markdownVariables[i].variable_type, "authors") == 0) {
-            fprintf(file, "%s: [\"%s\"]\n", markdownVariables[i].variable_type, 
-                    markdownVariables[i].default_value);
+        if (markdownVariables[i].isList) {
+            char *token = strtok(markdownVariables[i].default_value, ",");
+            fprintf(file, "%s: [", markdownVariables[i].variable_type);
+            while (token != NULL) {
+                fprintf(file, "\"%s\"", token);
+                token = strtok(NULL, ",");
+                if (token != NULL) {
+                    fprintf(file, ", ");
+                }
+            }
+            fprintf(file, "]\n");
         } else {
 
         fprintf(file, "%s: \"%s\"\n", markdownVariables[i].variable_type, 
