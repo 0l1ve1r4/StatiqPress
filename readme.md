@@ -1,4 +1,4 @@
-<img align="center" src="resources/screenshots/banner.png" width=1000>
+<img align="center" src="demo/image.png" width=100%>
 
 # StatiqPress
 
