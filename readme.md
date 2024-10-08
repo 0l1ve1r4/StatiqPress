@@ -1,8 +1,10 @@
-<img align="center" src="demo/image.png" width=100%>
+<img align="left" src="screenshot/shot01.png" width=50%>
+<img align="right" src="screenshot/shot02.png" width=50%>
+
 
 # StatiqPress
 
-**Effortless GUI for Uploading Content to GitHub-Based Static Blogs**
+**Effortless GUI for Uploading Content to GitHub Static Blogs, based by [raysan5](https://github.com/raysan5/raylib_project_creator)**
 
 StatiqPress is a user-friendly, immediate-mode GUI designed to simplify the process of uploading content to static blogs powered by GitHub workflows. This application acts as a "pull request maker" for repositories that integrate workflows for building and deploying sites.
 

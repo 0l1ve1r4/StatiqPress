@@ -713,7 +713,7 @@ RAYGUIAPI const char *GuiIconText(int iconId, const char *text); // Get text wit
 #if !defined(RAYGUI_NO_ICONS)
 RAYGUIAPI void GuiSetIconScale(int scale);                      // Set default icon drawing size
 RAYGUIAPI unsigned int *GuiGetIcons(void);                      // Get raygui icons data pointer
-RAYGUIAPI char **GuiLoadIcons(const char *fileName, bool loadIconsName); // Load raygui icons file (.md) into internal icons data
+RAYGUIAPI char **GuiLoadIcons(const char *fileName, bool loadIconsName); // Load raygui icons file (.rgi) into internal icons data
 RAYGUIAPI void GuiDrawIcon(int iconId, int posX, int posY, int pixelSize, Color color); // Draw icon using pixel size at specified position
 #endif
 
@@ -2759,7 +2759,7 @@ int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
     return result;      // Mouse button pressed: result = 1
 }
 
-
+/*
 // Text Box control with multiple lines and word-wrap
 // NOTE: This text-box is readonly, no editing supported by default
 bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
@@ -2779,7 +2779,7 @@ bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
 
     return pressed;
 }
-
+*/
 
 // Spinner control, returns selected value
 int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode)
@@ -4339,13 +4339,13 @@ const char *GuiIconText(int iconId, const char *text)
 // Get full icons data pointer
 unsigned int *GuiGetIcons(void) { return guiIconsPtr; }
 
-// Load raygui icons file (.md)
+// Load raygui icons file (.rgi)
 // NOTE: In case nameIds are required, they can be requested with loadIconsName,
 // they are returned as a guiIconsName[iconCount][RAYGUI_ICON_MAX_NAME_LENGTH],
 // WARNING: guiIconsName[]][] memory should be manually freed!
 char **GuiLoadIcons(const char *fileName, bool loadIconsName)
 {
-    // Style File Structure (.md)
+    // Style File Structure (.rgi)
     // ------------------------------------------------------
     // Offset  | Size    | Type       | Description
     // ------------------------------------------------------
