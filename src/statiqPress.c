@@ -149,7 +149,7 @@
 
 // raygui embedded styles
 // NOTE: Included in the same order as selector
-#define MAX_GUI_STYLES_AVAILABLE   12       // NOTE: Included light style
+#define MAX_GUI_STYLES_AVAILABLE   13       // NOTE: Included light style
 #include "styles/style_jungle.h"            // raygui style: jungle
 #include "styles/style_candy.h"             // raygui style: candy
 #include "styles/style_lavanda.h"           // raygui style: lavanda
@@ -161,6 +161,7 @@
 #include "styles/style_cherry.h"            // raygui style: cherry
 #include "styles/style_sunny.h"             // raygui style: sunny
 #include "styles/style_enefete.h"           // raygui style: enefete
+#include "styles/style_modern.h"             // raygui style: amber
 
 #include <stdio.h>                          // Required for: fopen(), fclose(), fread()...
 #include <stdlib.h>                         // Required for: malloc(), free()
@@ -575,16 +576,13 @@ int main(void)
     //--------------------------------------------------------------------------------------
 
     // Starting at the eight theme/style
-    #define DEFAULT_STYLE 2
+    #define DEFAULT_STYLE 13
     mainToolbarState.visualStyleActive = DEFAULT_STYLE - 1;
     mainToolbarState.btnAboutPressed = true; // show this when starting the program
     
     // Main game loop
     while (!closeWindow)    // Detect window close button
     {
-        loadBluishFont();
-        GuiSetStyle(TEXTBOX, TEXT_PADDING, 20); // Set padding to 0 for the textbox    
-        GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
         // Change Font
 
         // WARNING: ASINCIFY requires this line,
@@ -686,6 +684,7 @@ int main(void)
                 case 9: GuiLoadStyleCherry(); break;
                 case 10: GuiLoadStyleSunny(); break;
                 case 11: GuiLoadStyleEnefete(); break;
+                case 12: GuiLoadStyleAmber(); break;
                 default: break;
             }
 

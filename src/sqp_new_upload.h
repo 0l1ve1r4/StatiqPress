@@ -90,7 +90,7 @@ int8_t newUpload(void){
     int xContentBox = labelWidth + padding + inputWidth + padding; // Align content box to the right
     int yContentBox = initialY; // Keep it aligned with other elements
 
-    int result = WINDOW_BAR("New Upload", "", "Deploy to your Gitub Repository");
+    int result = WINDOW_BAR("New Upload", "", TextFormat("#44# Upload to the Github Repository"));
     for (int i = 0; i < NUM_MARKDOWN_VARIABLES; i++) {
         // Display the label on the left
         if (markdownVariables[i].isRequired) {
@@ -122,19 +122,19 @@ int8_t newUpload(void){
     }
 
     if (GuiButton((Rectangle){ xInput, initialY + ((NUM_MARKDOWN_VARIABLES) * yStep), 
-        inputWidth, labelHeight }, "Save Draft")) {
+        inputWidth, labelHeight }, TextFormat("#4# Save As a Draft"))) {
             saveMarkdownPost();
         }
 
     // Button to get image path using file dialog, aligned to the right
     if (GuiButton((Rectangle){ xInput, initialY + ((NUM_MARKDOWN_VARIABLES+1) * yStep), 
-        inputWidth, labelHeight }, "Get Banner")) {
+        inputWidth, labelHeight }, TextFormat("#5# Upload the banner"))) {
             getFilePath(markdownVariables[5].default_value, false, "*.png", "PNG Files (*.png)");
         }
 
     // Button to get post content, aligned to the right
     if (GuiButton((Rectangle){ xInput, initialY + ((NUM_MARKDOWN_VARIABLES+2) * yStep), 
-        inputWidth, labelHeight }, "Get Post Content")) {
+        inputWidth, labelHeight }, TextFormat("#5# Upload the Content"))) {
         strcpy(markdownContentIn, getMarkdownMainContent()); // Update the content variable
     }
 

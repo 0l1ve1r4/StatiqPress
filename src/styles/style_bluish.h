@@ -617,36 +617,3 @@ static void GuiLoadStyleBluish(void)
     // TODO: Custom user style setup: Set specific properties here (if required)
     // i.e. Controls specific BORDER_WIDTH, TEXT_PADDING, TEXT_ALIGNMENT
 }
-
-static void loadBluishFont(void){
-    // Custom font loading
-    // NOTE: Compressed font image data (DEFLATE), it requires DecompressData() function
-    int bluishFontDataSize = 0;
-    unsigned char *data = DecompressData(bluishFontData, BLUISH_STYLE_FONT_ATLAS_COMP_SIZE, &bluishFontDataSize);
-    Image imFont = { data, 256, 256, 1, 2 };
-
-    Font font = { 0 };
-    font.baseSize = 10;
-    font.glyphCount = 189;
-
-    // Load texture from image
-    font.texture = LoadTextureFromImage(imFont);
-    UnloadImage(imFont);  // Uncompressed image data can be unloaded from memory
-
-    // Copy char recs data from global fontRecs
-    // NOTE: Required to avoid issues if trying to free font
-    font.recs = (Rectangle *)RAYGUI_MALLOC(font.glyphCount*sizeof(Rectangle));
-    memcpy(font.recs, bluishFontRecs, font.glyphCount*sizeof(Rectangle));
-
-    // Copy font char info data from global fontChars
-    // NOTE: Required to avoid issues if trying to free font
-    font.glyphs = (GlyphInfo *)RAYGUI_MALLOC(font.glyphCount*sizeof(GlyphInfo));
-    memcpy(font.glyphs, bluishFontGlyphs, font.glyphCount*sizeof(GlyphInfo));
-
-    GuiSetFont(font);
-
-    // Setup a white rectangle on the font to be used on shapes drawing,
-    // it makes possible to draw shapes and text (full UI) in a single draw call
-    Rectangle fontWhiteRec = { 254, 254, 1, 1 };
-    SetShapesTexture(font.texture, fontWhiteRec);
-}

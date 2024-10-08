@@ -207,7 +207,7 @@ void GuiMainToolbar(GuiMainToolbarState *state)
     // Visuals options
     GuiLabel((Rectangle){ state->anchorVisuals.x -80, state->anchorVisuals.y + 8, 70, 24 }, "Style:");
     GuiSetTooltip("Select visual UI style");
-    GuiComboBox((Rectangle){ state->anchorVisuals.x, state->anchorVisuals.y + 8, 120+50, 24 }, "Light;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish;Dark;Cherry;Sunny;Enefete", &state->visualStyleActive);
+    GuiComboBox((Rectangle){ state->anchorVisuals.x, state->anchorVisuals.y + 8, 120+50, 24 }, "Light;Jungle;Candy;Lavanda;Cyber;Terminal;Ashes;Bluish;Dark;Cherry;Sunny;Enefete;Modern", &state->visualStyleActive);
 
     // Info options
     GuiSetTooltip("Show help window (F1)");
