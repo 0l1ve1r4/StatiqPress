@@ -52,7 +52,6 @@
 **********************************************************************************************/
 
 #include "raylib.h"
-#include <stdio.h>
 
 #if defined(PLATFORM_WEB)
     #define CUSTOM_MODAL_DIALOGS            // Force custom modal dialogs usage
@@ -86,7 +85,9 @@
 // C standard library
 #include <stdlib.h>                 // Required for: NULL, calloc(), free()
 #include <string.h>                 // Required for: memcpy()
-#include <stdint.h>                 // Recquired for: MAX_INT4
+#include <stdint.h>                 // Required for: MAX_UINT VALUES
+#include <time.h>                   // Required for: time_t now to get hugo format
+#include <stdio.h>                  // Required for: printf
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -158,7 +159,7 @@ static bool showLoadResourcePathDialog = false;
 static bool showLoadRaylibSourcePathDialog = false;
 static bool showLoadCompilerPathDialog = false;
 static bool showLoadOutputPathDialog = false;
-static bool showExportProjectProgress = false;
+static bool showUploadProjectPopup = false;
 static bool showInfoMessagePanel = false;
 static const char *infoTitle = NULL;
 static const char *infoMessage = NULL;
@@ -362,7 +363,7 @@ int main(int argc, char *argv[])
             showLoadRaylibSourcePathDialog ||
             showLoadCompilerPathDialog ||
             showLoadOutputPathDialog ||
-            showExportProjectProgress) lockBackground = true;
+            showUploadProjectPopup) lockBackground = true;
         else lockBackground = false;
 
         if (lockBackground) GuiLock();
@@ -398,7 +399,7 @@ int main(int argc, char *argv[])
             GuiLabel((Rectangle){ anchorProject.x + 8, anchorProject.y + 88, 104, 24 }, "TAG(S):");
             if (GuiTextBox((Rectangle){ anchorProject.x + 112, anchorProject.y + 88, 280, 24 }, config->project.tags, 128, projectDeveloperEditMode)) projectDeveloperEditMode = !projectDeveloperEditMode;
 
-            GuiSetTooltip("Use just one category");
+            GuiSetTooltip("For multiple Categories, separate them by comma ','");
             GuiLabel((Rectangle){ anchorProject.x + 408, anchorProject.y + 88, 80, 24 }, "CATEGORY:");
             if (GuiTextBox((Rectangle){ anchorProject.x + 496, anchorProject.y + 88, 280, 24 }, config->project.category, 128, projectDeveloperWebEditMode)) projectDeveloperWebEditMode = !projectDeveloperWebEditMode;
 
@@ -454,7 +455,7 @@ int main(int argc, char *argv[])
             //if (config->project.srcFileCount == 0) GuiDisable();
             if (GuiButton((Rectangle){ 8, 450, 784, 40 }, "#7#UPLOAD POST TO YOUR SITE"))
             {
-                showExportProjectProgress = true;
+                showUploadProjectPopup = true;
             }
             //GuiEnable();
 
@@ -536,7 +537,7 @@ int main(int argc, char *argv[])
             getFilePath(config);
 
             // GUI: Upload Post Dialog
-            if (showExportProjectProgress) uploadProject(config);
+            if (showUploadProjectPopup) uploadProject(config);
 
         EndTextureMode();
 
@@ -595,19 +596,56 @@ static void getFilePath(ProjectConfig *config){
 
 }
 
-static void uploadProject(ProjectConfig *config){
-    printf("%s\n", config->project.title);
-    printf("%s\n", config->project.author);
-    printf("%s\n", config->project.description);
-    printf("%s\n", config->project.tags);
-    printf("%s\n", config->project.category);
-    printf("%s\n", config->project.srcContentPath);
-    printf("%s\n", config->project.srcBannerPath);
+#define FILE_SAVE_PATH "./index.md"
+#define BANNER_PATH     "./banner.png"
 
-    printf("%s\n", config->building.gitRepositoryUrl); // github
-    printf("%s\n", config->building.contentFolderPath); // content/blog
-    printf("%s\n", config->building.imageFolderPath); // static/img
+static int writeContent(ProjectConfig *config) {
+    FILE *indexFile = fopen(FILE_SAVE_PATH, "w+");
+    if (indexFile == NULL) {
+        perror("Error opening index.md for writing");
+        return -1;
+    }
 
-    exit(0);
+    FILE *contentFile = fopen(config->project.srcContentPath, "r");
+    if (contentFile == NULL) {
+        perror("Error opening content file");
+        fclose(indexFile);
+        return -2;
+    }
+
+    time_t now;
+    time(&now);
+    struct tm *local = localtime(&now);
+    char dateStr[50];
+    strftime(dateStr, sizeof(dateStr), "%Y-%m-%dT%H:%M:%S%z", local);
+
+    fprintf(indexFile, "+++\n");
+    fprintf(indexFile, "title = \"%s\"\n", config->project.title);
+    fprintf(indexFile, "date = \"%s\"\n", dateStr);
+    fprintf(indexFile, "tags = [%s]\n", config->project.tags);
+    fprintf(indexFile, "categories = [%s]\n", config->project.category);
+    fprintf(indexFile, "description = \"%s\"\n", config->project.description);
+    fprintf(indexFile, "banner = \"%s\"\n", BANNER_PATH);
+    fprintf(indexFile, "authors = [\"%s\"]\n", config->project.author);
+    fprintf(indexFile, "+++\n\n");
+
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), contentFile) != NULL) {
+        fprintf(indexFile, "%s", buffer);
+    }
+    fclose(contentFile);
+    fclose(indexFile);
+
+    printf("Project saved successfully to %s\n", FILE_SAVE_PATH);
+    return 0;
+}
+
+static void uploadProject(ProjectConfig *config) {
+    if (writeContent(config) != 0){
+        fprintf(stderr, "Something went wrong");
+        // TODO: Make a popup / probably wrong user input
+    }
+
+    showUploadProjectPopup = false;
 
 }
