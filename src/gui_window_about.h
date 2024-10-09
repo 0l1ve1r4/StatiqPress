@@ -191,7 +191,6 @@ GuiWindowAboutState InitGuiWindowAbout(void)
     GuiWindowAboutState state = { 0 };
 
     state.windowActive = false;
-
     state.windowBounds = (Rectangle){ GetScreenWidth()/2 - 360/2, GetScreenHeight()/2 - 340/2, 360, 340 };
     state.panOffset = (Vector2){ 0, 0 };
     state.dragMode = false;
